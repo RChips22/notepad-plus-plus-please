@@ -1651,10 +1651,7 @@ bool Notepad_plus::fileSave(BufferID id)
 	{
 		if (buf->isUntitled())
 		{
-			bool isOK = fileSaveAs(bufferID);
-			if (isOK)
-				buf->clearTabCreatedTimeString();
-			return isOK;
+			return fileSaveAs(bufferID);
 		}
 
 		const NppGUI & nppgui = (NppParameters::getInstance()).getNppGUI();
@@ -1891,8 +1888,7 @@ bool Notepad_plus::fileSaveAs(BufferID id, bool isSaveCopy)
 	}
 	fDlg.setTitle(localizedTitle.c_str());
 
-	const wstring checkboxLabel = _nativeLangSpeaker.getLocalizedStrFromID("file-save-assign-type",
-		L"&Append extension");
+	const wstring checkboxLabel = _nativeLangSpeaker.getLocalizedStrFromID("file-save-assign-type", L"&Append extension");
 	fDlg.enableFileTypeCheckbox(checkboxLabel, !defaultAllTypes);
 
 	// Disable file autodetection before opening save dialog to prevent use-after-delete bug.
