@@ -1145,7 +1145,6 @@ Brug mellemrum til at angive flere markører."/>
 				</Backup>
 
 				<AutoCompletion title="Automatik">
-					<Item id="6115" name="Automatisk indrykning"/>
 					<Item id="6807" name="Automatisk fuldførelse"/>
 					<Item id="6808" name="Aktivér automatisk fuldførelse"/>
 					<Item id="6809" name="Fuldfør funktioner"/>
@@ -1614,10 +1613,8 @@ Find i alle filer, undtagen i mapperne log med undermapper:
 			<finder-uncollapse-all value="Udvid alle"/>
 			<finder-copy value="Kopiér valgte linie(r)"/>
 			<finder-copy value="Kopier"/>
-			<finder-copy-paths value="Kopiér stinavn(e)"/>
 			<finder-select-all value="Markér alle"/>
 			<finder-clear-all value="Ryd alle"/>
-			<finder-open-all value="Åbn alle"/>
 			<finder-purge-for-every-search value="Ryd ved ny søgning"/>
 			<finder-wrap-long-lines value="Ombryd lange linier"/>
 			<common-ok value="OK"/>

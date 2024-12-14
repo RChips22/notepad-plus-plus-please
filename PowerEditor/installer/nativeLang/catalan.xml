@@ -852,7 +852,6 @@ By Hiro5 <groccat at gmail>
 					<Item id="6803" name="Directori:"/>
 				</Backup>
 				<AutoCompletion title="Autocompleció">
-					<Item id="6115" name="Sagnat automàtic"/>
 					<Item id="6807" name="Autocompleció"/>
 					<Item id="6808" name="Permetre Autocompleció a cada entrada"/>
 					<Item id="6809" name="Autocompleta funcions"/>
@@ -1176,7 +1175,6 @@ By Hiro5 <groccat at gmail>
 			<finder-copy value="Copia"/>
 			<finder-select-all value="Selecciona-ho tot"/>
 			<finder-clear-all value="Neteja-ho tot"/>
-			<finder-open-all value="Obre-ho tot"/>
 			<common-ok value="D'acord"/>
 			<common-cancel value="Cancel·la"/>
 			<common-name value="Nom: "/>

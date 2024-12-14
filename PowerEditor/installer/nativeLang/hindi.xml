@@ -866,7 +866,6 @@
 				</Backup>
 
 				<AutoCompletion title="स्वतः पूर्ति">
-					<Item id="6115" name="स्वचालित इंडेंट"/>
 					<Item id="6807" name="स्वतः पूर्ति"/>
 					<Item id="6808" name="प्रत्येक इनपुट पर स्वतः पूर्ति सक्रिय करें"/>
 					<Item id="6809" name="फंक्शन समापन"/>
@@ -1216,7 +1215,6 @@
 			<finder-copy value="कॉपी करें"/>
 			<finder-select-all value="सब सेलेक्ट करें"/>
 			<finder-clear-all value="सब क्लियर करें"/>
-			<finder-open-all value="सब ओपन करें"/>
 			<common-ok value="ओके"/>
 			<common-cancel value="रद्द करें"/>
 			<common-name value="नाम: "/>

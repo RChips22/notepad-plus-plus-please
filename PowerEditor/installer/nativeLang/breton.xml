@@ -862,7 +862,6 @@
 				</Backup>
 
 				<AutoCompletion title="Em-glokaat">
-					<Item id="6115" name="Em-endantañ"/>
 					<Item id="6807" name="Em-glokaat"/>
 					<Item id="6808" name="Enaouiñ an em-glokaat war bep enmont"/>
 					<Item id="6809" name="Arc'hweladur klokat"/>
@@ -1232,7 +1231,6 @@ Klask en holl restroù paneve exe, obj &amp;&amp; log:
 			<finder-copy value="Eilañ"/>
 			<finder-select-all value="Diuzañ pep-tra"/>
 			<finder-clear-all value="Diverkañ pep-tra"/>
-			<finder-open-all value="Digeriñ pep-tra"/>
 			<common-ok value="Mat eo"/>
 			<common-cancel value="Nullañ"/>
 			<common-name value="Anv: "/>

@@ -845,7 +845,6 @@
 				</Backup>
 
 				<AutoCompletion title="Auto-Completion">
-					<Item id="6115" name="Autoyay-indentyay"/>
 					<Item id="6807" name="Autoyay-Ompletioncay"/>
 					<Item id="6808" name="Enableyay autoyay-ompletioncay onyay eachyay inputyay"/>
 					<Item id="6809" name="Unctionfay ompletioncay"/>
@@ -1136,7 +1135,6 @@
 			<finder-copy value="Opycay"/>
 			<finder-select-all value="Electsay allyay"/>
 			<finder-clear-all value="Earclay allyay"/>
-			<finder-open-all value="Openyay allyay"/>
 		</MiscStrings>
 	</Native-Langue>
 </NotepadPlus>

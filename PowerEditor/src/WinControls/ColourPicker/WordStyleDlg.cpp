@@ -1008,7 +1008,7 @@ bool WordStyleDlg::goToSection(const wchar_t* sectionNames)
 	::SendDlgItemMessage(_hSelf, IDC_STYLES_LIST, LB_SETCURSEL, i, 0);
 	setVisualFromStyleList();
 
-	getFocus();
+	grabFocus();
 
 	return true;
 }
@@ -1165,6 +1165,11 @@ std::pair<intptr_t, intptr_t> WordStyleDlg::goToPreferencesSettings()
 	{
 		result.first = edit2;
 		result.second = IDC_CHECK_WITHCUSTOMCOLOR_CRLF;
+	}
+	else if (style._styleDesc == L"Inactive tabs")
+	{
+		result.first = general;
+		result.second = IDC_CHECK_DRAWINACTIVE;
 	}
 	else if (style._styleDesc == g_npcStyleName)
 	{

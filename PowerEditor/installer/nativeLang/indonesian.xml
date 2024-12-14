@@ -1136,7 +1136,6 @@ Anda dapat mendefinisikan beberapa penanda kolom dengan menggunakan spasi putih 
 				</Backup>
 
 				<AutoCompletion title="Pelengkapan Otomatis (PO)">
-					<Item id="6115" name="Indentasi otomatis"/>
 					<Item id="6807" name="Pelengkapan Otomatis (PO)"/>
 					<Item id="6808" name="Aktifkan PO pada tiap input"/>
 					<Item id="6809" name="Pelengkapan fungsi"/>
@@ -1599,10 +1598,8 @@ Temukan dalam semua berkas kecuali semua folder log atau logs secara berulang:
 			<finder-uncollapse-all value="Buka semua lipatan"/>
 			<finder-copy value="Salin Baris Terpilih"/>
 			<finder-copy-verbatim value="Salin"/>
-			<finder-copy-paths value="Salin Nama Jalur"/>
 			<finder-select-all value="Pilih semua"/>
 			<finder-clear-all value="Bersihkan semua"/>
-			<finder-open-all value="Buka semua"/>
 			<finder-purge-for-every-search value="Hapus untuk tiap pencarian"/>
 			<finder-wrap-long-lines value="Kemas kata baris panjang"/>
 			<common-ok value="Oke"/>

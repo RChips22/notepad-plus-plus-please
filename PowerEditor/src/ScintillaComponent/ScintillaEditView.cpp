@@ -1859,12 +1859,11 @@ void ScintillaEditView::defineDocType(LangType typeDoc)
 			setSpecialStyle(nfoStyle);
 			execute(SCI_STYLECLEARALL);
 
-			Buffer * buf = MainFileManager.getBufferByID(_currentBufferID);
+			Buffer* buf = MainFileManager.getBufferByID(_currentBufferID);
 
-			if (buf->getEncoding() != NPP_CP_DOS_437)
+			if (buf->getEncoding() == NPP_CP_DOS_437)
 			{
-			   buf->setEncoding(NPP_CP_DOS_437);
-			   ::SendMessage(_hParent, WM_COMMAND, IDM_FILE_RELOAD, 0);
+				MainFileManager.reloadBuffer(buf);
 			}
 		}
 		break;
@@ -2801,7 +2800,7 @@ void ScintillaEditView::showCallTip(size_t startPos, const wchar_t * def)
 	execute(SCI_CALLTIPSHOW, startPos, reinterpret_cast<LPARAM>(defA));
 }
 
-wstring ScintillaEditView::getLine(size_t lineNumber)
+wstring ScintillaEditView::getLine(size_t lineNumber) const
 {
 	size_t lineLen = execute(SCI_LINELENGTH, lineNumber);
 	const size_t bufSize = lineLen + 1;
@@ -2810,7 +2809,7 @@ wstring ScintillaEditView::getLine(size_t lineNumber)
 	return buf.get();
 }
 
-void ScintillaEditView::getLine(size_t lineNumber, wchar_t * line, size_t lineBufferLen)
+void ScintillaEditView::getLine(size_t lineNumber, wchar_t * line, size_t lineBufferLen) const
 {
 	// make sure the buffer length is enough to get the whole line
 	size_t lineLen = execute(SCI_LINELENGTH, lineNumber);

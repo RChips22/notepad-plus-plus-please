@@ -934,7 +934,6 @@ You can define several column markers by using white space to separate the diffe
 				</Backup>
 
 				<AutoCompletion title="Auto-Completion">
-					<Item id="6115" name="Auto-indent"/>
 					<Item id="6807" name="Auto-Completion"/>
 					<Item id="6808" name="Cumasaigh auto-completion on each input"/>
 					<Item id="6809" name="Function completion"/>
@@ -1302,7 +1301,6 @@ Find in all files except exe, obj &amp;&amp; log:
 			<finder-copy value="Cóipeáil"/>
 			<finder-select-all value="Roghnaigh uile"/>
 			<finder-clear-all value="Glan uile"/>
-			<finder-open-all value="Oscail uile"/>
 			<common-ok value="Tá go maith"/>
 			<common-cancel value="Cealaigh"/>
 			<common-name value="Ainm: "/>

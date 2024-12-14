@@ -1216,7 +1216,6 @@ Translation note:
 				</Backup>
 
 				<AutoCompletion title="Autocompletado">
-					<Item id="6115" name="Autoindentar"/>
 					<Item id="6807" name="Autocompletado"/>
 					<Item id="6808" name="Activar el autocompletado en cada entrada"/>
 					<Item id="6809" name="Autocompletar función"/>
@@ -1724,9 +1723,7 @@ Buscar en todos los archivos pero excluir todas las carpetas de registro o regis
 			<finder-collapse-all value="Contraer todo"/>
 			<finder-uncollapse-all value="Expandir todo"/>
 			<finder-copy value="Copiar línea(s) seleccionada(s)"/>
-			<finder-copy-paths value="Copiar nombre(s) de ruta(s)"/>
 			<finder-clear-all value="Limpiar todo"/>
-			<finder-open-all value="Abrir todo"/>
 			<finder-purge-for-every-search value="Depurar para cada búsqueda"/>
 			<finder-wrap-long-lines value="Ajustar longitud del texto"/>
 			<common-ok value="OK"/>

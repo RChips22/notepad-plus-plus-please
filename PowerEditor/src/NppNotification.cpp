@@ -317,7 +317,7 @@ BOOL Notepad_plus::notify(SCNotification *notification)
 			int index = tabNotification->_tabOrigin;
 			BufferID bufferToClose = notifyDocTab->getBufferByIndex(index);
 			Buffer * buf = MainFileManager.getBufferByID(bufferToClose);
-			int iView = isFromPrimary?MAIN_VIEW:SUB_VIEW;
+			int iView = isFromPrimary ? MAIN_VIEW : SUB_VIEW;
 			if (buf->isDirty())
 			{
 				activateBuffer(bufferToClose, iView);
@@ -329,6 +329,36 @@ BOOL Notepad_plus::notify(SCNotification *notification)
 			                                             // because the precedent call "activateBuffer(bufferToClose, iView)" could finally lead "doClose" call as well (in case of file non-existent).
 				&& fileClose(bufferToClose, iView))
 				checkDocState();
+
+			break;
+		}
+
+		case TCN_TABPINNED:
+		{
+			int index = tabNotification->_tabOrigin;
+			BufferID bufferToBePinned = notifyDocTab->getBufferByIndex(index);
+			Buffer * buf = MainFileManager.getBufferByID(bufferToBePinned);
+
+			bool isPinned = buf->isPinned();
+
+			if (_mainDocTab.getHSelf() == notification->nmhdr.hwndFrom)
+			{
+				if (!isPinned)
+					_mainDocTab.tabToStart(index);
+				else
+					_mainDocTab.tabToEnd(index);
+			}
+			else if (_subDocTab.getHSelf() == notification->nmhdr.hwndFrom)
+			{
+				if (!isPinned)
+					_subDocTab.tabToStart(index);
+				else
+					_subDocTab.tabToEnd(index);
+			}
+			else
+				return FALSE;
+
+			buf->setPinned(!isPinned);
 
 			break;
 		}
@@ -541,9 +571,11 @@ BOOL Notepad_plus::notify(SCNotification *notification)
 					
 					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_CLOSE, L"Close"));
 					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_CLOSEALL_BUT_CURRENT, L"Close All BUT This", L"Close Multiple Tabs"));
+					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_CLOSEALL_BUT_PINNED, L"Close All BUT Pinned", L"Close Multiple Tabs"));
 					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_CLOSEALL_TOLEFT, L"Close All to the Left", L"Close Multiple Tabs"));
 					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_CLOSEALL_TORIGHT, L"Close All to the Right", L"Close Multiple Tabs"));
 					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_CLOSEALL_UNCHANGED, L"Close All Unchanged", L"Close Multiple Tabs"));
+					itemUnitArray.push_back(MenuItemUnit(IDM_PINTAB, L"Pin Tab"));
 					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_SAVE, L"Save"));
 					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_SAVEAS, L"Save As..."));
 					itemUnitArray.push_back(MenuItemUnit(IDM_FILE_OPEN_FOLDER, L"Open Containing Folder in Explorer", L"Open into"));
@@ -593,7 +625,7 @@ BOOL Notepad_plus::notify(SCNotification *notification)
 			bool isEnable = ((::GetMenuState(_mainMenuHandle, IDM_FILE_SAVE, MF_BYCOMMAND)&MF_DISABLED) == 0);
 			_tabPopupMenu.enableItem(IDM_FILE_SAVE, isEnable);
 
-			Buffer * buf = _pEditView->getCurrentBuffer();
+			Buffer* buf = _pEditView->getCurrentBuffer();
 			bool isUserReadOnly = buf->getUserReadOnly();
 			_tabPopupMenu.checkItem(IDM_EDIT_SETREADONLY, isUserReadOnly);
 
@@ -622,6 +654,33 @@ BOOL Notepad_plus::notify(SCNotification *notification)
 
 			_tabPopupMenu.enableItem(IDM_FILE_SAVEAS, !isInaccessible);
 			_tabPopupMenu.enableItem(IDM_FILE_RENAME, !isInaccessible);
+
+			bool isTabPinEnabled = TabBarPlus::drawTabPinButton();
+			wstring newName;
+			if (isTabPinEnabled)
+			{
+				wstring defaultName;
+				bool isAlternative;
+				if (buf->isPinned())
+				{
+					defaultName = L"Unpin Tab";
+					isAlternative = true;
+				}
+				else
+				{
+					defaultName = L"Pin Tab";
+					isAlternative = false;
+				}
+				_nativeLangSpeaker.getAlternativeNameFromTabContextMenu(newName, IDM_PINTAB, isAlternative, defaultName);
+				::ModifyMenu(_tabPopupMenu.getMenuHandle(), IDM_PINTAB, MF_BYCOMMAND, IDM_PINTAB, newName.c_str());
+			}
+			else
+			{
+				_nativeLangSpeaker.getAlternativeNameFromTabContextMenu(newName, IDM_PINTAB, false, L"Pin Tab");
+				::ModifyMenu(_tabPopupMenu.getMenuHandle(), IDM_PINTAB, MF_BYCOMMAND, IDM_PINTAB, newName.c_str());
+			}
+
+			_tabPopupMenu.enableItem(IDM_PINTAB, isTabPinEnabled);
 
 			_tabPopupMenu.display(p);
 			return TRUE;
