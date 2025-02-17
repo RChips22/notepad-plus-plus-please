@@ -162,6 +162,7 @@ LanguageNameInfo ScintillaEditView::_langNameInfoArray[L_EXTERNAL + 1] = {
 	{L"go",               L"Go",                     L"Go source file",                                    L_GOLANG,          "cpp"},
 	{L"raku",             L"Raku",                   L"Raku source file",                                  L_RAKU,            "raku"},
 	{L"toml",             L"TOML",                   L"Tom's Obvious Minimal Language file",               L_TOML,            "toml"},
+	{L"sas",              L"SAS",                    L"SAS file",                                          L_SAS,             "sas"},
 	{L"ext",              L"External",               L"External",                                          L_EXTERNAL,        "null"}
 };
 
@@ -252,8 +253,9 @@ void ScintillaEditView::init(HINSTANCE hInst, HWND hPere)
 	const COLORREF hiddenLinesGreen = RGB(0x77, 0xCC, 0x77);
 	long hiddenLinesGreenWithAlpha = hiddenLinesGreen | 0xFF000000;
 	setElementColour(SC_ELEMENT_HIDDEN_LINE, hiddenLinesGreenWithAlpha);
-
-	if (NppParameters::getInstance()._dpiManager.scaleX(100) >= 150)
+	
+	NppParameters& nppParams = NppParameters::getInstance();
+	if (nppParams._dpiManager.scaleX(100) >= 150)
 	{
 		execute(SCI_RGBAIMAGESETWIDTH, 18);
 		execute(SCI_RGBAIMAGESETHEIGHT, 18);
@@ -311,7 +313,7 @@ void ScintillaEditView::init(HINSTANCE hInst, HWND hPere)
 	execute(SCI_INDICSETUNDER, SCE_UNIVERSAL_FOUND_STYLE_EXT4, true);
 	execute(SCI_INDICSETUNDER, SCE_UNIVERSAL_FOUND_STYLE_EXT5, true);
 
-	NppGUI& nppGui = (NppParameters::getInstance()).getNppGUI();
+	NppGUI& nppGui = nppParams.getNppGUI();
 
 	HMODULE hNtdllModule = ::GetModuleHandle(L"ntdll.dll");
 	FARPROC isWINE = nullptr;
@@ -319,8 +321,16 @@ void ScintillaEditView::init(HINSTANCE hInst, HWND hPere)
 		isWINE = ::GetProcAddress(hNtdllModule, "wine_get_version");
 
 	if (isWINE || // There is a performance issue under WINE when DirectWrite is ON, so we turn it off if user uses Notepad++ under WINE
-		::IsWindowsServer()) // In the case of Windows Server Core, DirectWrite cannot be on.
-		nppGui._writeTechnologyEngine = defaultTechnology;
+		isCoreWindows()) // In the case of Windows Server Core, DirectWrite cannot be on.
+	{
+		nppGui._writeTechnologyEngine = directWriteTechnologyUnavailable;
+	}
+	else
+	{
+		// allow IDC_CHECK_DIRECTWRITE_ENABLE to be set in Preferences > MISC. again
+		if (nppGui._writeTechnologyEngine == directWriteTechnologyUnavailable)
+			nppGui._writeTechnologyEngine = defaultTechnology;
+	}
 
 	if (nppGui._writeTechnologyEngine == directWriteTechnology)
 	{
@@ -347,6 +357,7 @@ void ScintillaEditView::init(HINSTANCE hInst, HWND hPere)
 			delete[] defaultCharList;
 		}
 	}
+	unsigned long MODEVENTMASK_ON = nppParams.getScintillaModEventMask();
 	execute(SCI_SETMODEVENTMASK, MODEVENTMASK_ON);
 	//Get the startup document and make a buffer for it so it can be accessed like a file
 	attachDefaultDoc();
@@ -382,6 +393,7 @@ LRESULT CALLBACK ScintillaEditView::scintillaStatic_Proc(HWND hwnd, UINT Message
 		return ::DefWindowProc(hwnd, Message, wParam, lParam);
 
 }
+
 LRESULT ScintillaEditView::scintillaNew_Proc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch (Message)
@@ -535,14 +547,15 @@ LRESULT ScintillaEditView::scintillaNew_Proc(HWND hwnd, UINT Message, WPARAM wPa
 				MultiCaretInfo(int len, size_t n) : _len2remove(len), _selIndex(n) {};
 			};
 
-			SHORT ctrl = GetKeyState(VK_CONTROL);
-			SHORT alt = GetKeyState(VK_MENU);
-			SHORT shift = GetKeyState(VK_SHIFT);
 			bool isColumnSelection = (execute(SCI_GETSELECTIONMODE) == SC_SEL_RECTANGLE) || (execute(SCI_GETSELECTIONMODE) == SC_SEL_THIN);
 			bool column2MultSelect = (NppParameters::getInstance()).getSVP()._columnSel2MultiEdit;
 
 			if (wParam == VK_DELETE)
 			{
+				SHORT ctrl = GetKeyState(VK_CONTROL);
+				SHORT alt = GetKeyState(VK_MENU);
+				SHORT shift = GetKeyState(VK_SHIFT);
+
 				if (!(shift & 0x8000) && !(ctrl & 0x8000) && !(alt & 0x8000)) // DEL & Multi-edit
 				{
 					size_t nbSelections = execute(SCI_GETSELECTIONS);
@@ -563,8 +576,8 @@ LRESULT ScintillaEditView::scintillaNew_Proc(HWND hwnd, UINT Message, WPARAM wPa
 							{
 								size_t docLen = getCurrentDocLen();
 
-								char eolStr[3];
-								Sci_TextRangeFull tr;
+								char eolStr[3] = { '\0' };
+								Sci_TextRangeFull tr {};
 								tr.chrg.cpMin = posStart;
 								tr.chrg.cpMax = posEnd + 2;
 								if (tr.chrg.cpMax > static_cast<Sci_Position>(docLen))
@@ -882,6 +895,8 @@ void ScintillaEditView::setEmbeddedJSLexer()
 	execute(SCI_STYLESETEOLFILLED, SCE_HJ_DEFAULT, true);
 	execute(SCI_STYLESETEOLFILLED, SCE_HJ_COMMENT, true);
 	execute(SCI_STYLESETEOLFILLED, SCE_HJ_COMMENTDOC, true);
+	execute(SCI_STYLESETEOLFILLED, SCE_HJ_TEMPLATELITERAL, true);
+	execute(SCI_STYLESETEOLFILLED, SCE_HJA_TEMPLATELITERAL, true);
 }
 
 void ScintillaEditView::setJsonLexer(bool isJson5)
@@ -1702,6 +1717,34 @@ void ScintillaEditView::setNpcAndCcUniEOL(long color)
 	redraw();
 }
 
+void ScintillaEditView::setLanguage(LangType langType)
+{
+	unsigned long MODEVENTMASK_ON = NppParameters::getInstance().getScintillaModEventMask();
+
+	if (_currentBuffer->getLastLangType() > 0)
+	{
+		saveCurrentPos();
+		Document prev = execute(SCI_GETDOCPOINTER);
+		execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF);
+		execute(SCI_SETDOCPOINTER, 0, getBlankDocument());
+		execute(SCI_SETMODEVENTMASK, MODEVENTMASK_ON);
+
+		_currentBuffer->setLangType(langType);
+		
+		execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF);
+		execute(SCI_SETDOCPOINTER, 0, prev);
+		execute(SCI_SETMODEVENTMASK, MODEVENTMASK_ON);
+
+		maintainStateForNpc();
+		setCRLF();
+		restoreCurrentPosPreStep();
+	}
+	else
+	{
+		_currentBuffer->setLangType(langType);
+	}
+}
+
 void ScintillaEditView::defineDocType(LangType typeDoc)
 {
 	StyleArray & stylers = NppParameters::getInstance().getMiscStylerArray();
@@ -1805,12 +1848,12 @@ void ScintillaEditView::defineDocType(LangType typeDoc)
             setTclLexer(); break;
 
 
-        case L_OBJC :
-            setObjCLexer(typeDoc); break;
+		case L_OBJC :
+			setObjCLexer(typeDoc); break;
 
 	    case L_PHP :
 		case L_ASP :
-        case L_JSP :
+		case L_JSP :
 		case L_HTML :
 		case L_XML :
 			setXmlLexer(typeDoc); break;
@@ -1840,7 +1883,7 @@ void ScintillaEditView::defineDocType(LangType typeDoc)
 				setUserLexer();
 			break; }
 
-        case L_ASCII :
+		case L_ASCII :
 		{
 			LexerStyler *pStyler = (NppParameters::getInstance().getLStylerArray()).getLexerStylerByName(L"nfo");
 
@@ -1908,52 +1951,52 @@ void ScintillaEditView::defineDocType(LangType typeDoc)
 			setFortran77Lexer(); break;
 
 		case L_LISP :
-            setLispLexer(); break;
+			setLispLexer(); break;
 
 		case L_SCHEME :
-            setSchemeLexer(); break;
+			setSchemeLexer(); break;
 
 		case L_ASM :
-            setAsmLexer(); break;
+			setAsmLexer(); break;
 
 		case L_DIFF :
-            setDiffLexer(); break;
+			setDiffLexer(); break;
 
 		case L_PROPS :
-            setPropsLexer(); break;
+			setPropsLexer(); break;
 
 		case L_PS :
-            setPostscriptLexer(); break;
+			setPostscriptLexer(); break;
 
 		case L_RUBY :
-            setRubyLexer(); break;
+			setRubyLexer(); break;
 
 		case L_SMALLTALK :
-            setSmalltalkLexer(); break;
+			setSmalltalkLexer(); break;
 
 		case L_VHDL :
-            setVhdlLexer(); break;
+			setVhdlLexer(); break;
 
 		case L_KIX :
-            setKixLexer(); break;
+			setKixLexer(); break;
 
 		case L_CAML :
-            setCamlLexer(); break;
+			setCamlLexer(); break;
 
 		case L_ADA :
-            setAdaLexer(); break;
+			setAdaLexer(); break;
 
 		case L_VERILOG :
-            setVerilogLexer(); break;
+			setVerilogLexer(); break;
 
 		case L_AU3 :
-            setAutoItLexer(); break;
+			setAutoItLexer(); break;
 
 		case L_MATLAB :
-            setMatlabLexer(); break;
+			setMatlabLexer(); break;
 
 		case L_HASKELL :
-            setHaskellLexer(); break;
+			setHaskellLexer(); break;
 
 		case L_INNO :
 			setInnoLexer(); break;
@@ -1964,19 +2007,19 @@ void ScintillaEditView::defineDocType(LangType typeDoc)
 		case L_YAML :
 			setYamlLexer(); break;
 
-        case L_COBOL :
+		case L_COBOL :
 			setCobolLexer(); break;
 
-        case L_GUI4CLI :
+		case L_GUI4CLI :
 			setGui4CliLexer(); break;
 
-        case L_D :
+		case L_D :
 			setDLexer(); break;
 
-        case L_POWERSHELL :
+		case L_POWERSHELL :
 			setPowerShellLexer(); break;
 
-        case L_R :
+		case L_R :
 			setRLexer(); break;
 
 		case L_COFFEESCRIPT :
@@ -2069,6 +2112,9 @@ void ScintillaEditView::defineDocType(LangType typeDoc)
 		case L_TOML:
 			setTomlLexer(); break;
 
+		case L_SAS:
+			setSasLexer(); break;
+
 		case L_TEXT :
 		default :
 			if (typeDoc >= L_EXTERNAL && typeDoc < NppParameters::getInstance().L_END)
@@ -2112,9 +2158,6 @@ void ScintillaEditView::defineDocType(LangType typeDoc)
 		if (currentIndentMode != docIndentMode)
 			execute(SCI_SETINDENTATIONGUIDES, docIndentMode);
 	}
-
-	execute(SCI_SETLAYOUTCACHE, SC_CACHE_DOCUMENT, 0);
-	execute(SCI_STARTSTYLING, 0, 0);
 }
 
 Document ScintillaEditView::getBlankDocument()
@@ -2277,10 +2320,9 @@ bool ScintillaEditView::setLexerFromLangID(int langID) // Internal lexer only
 
 void ScintillaEditView::activateBuffer(BufferID buffer, bool force)
 {
-	if (buffer == BUFFER_INVALID)
-		return;
-	if (!force && buffer == _currentBuffer)
-		return;
+	if (buffer == BUFFER_INVALID) return;
+	if (!force && buffer == _currentBuffer)	return;
+
 	Buffer * newBuf = MainFileManager.getBufferByID(buffer);
 
 	// before activating another document, we get the current position
@@ -2299,10 +2341,13 @@ void ScintillaEditView::activateBuffer(BufferID buffer, bool force)
 	_currentBufferID = buffer;	//the magical switch happens here
 	_currentBuffer = newBuf;
 
-	const bool isSameLangType = _prevBuffer != nullptr && ((_prevBuffer == _currentBuffer) || (_prevBuffer->getLangType() == _currentBuffer->getLangType()));
+	const bool isSameLangType = (_prevBuffer != nullptr) && (_prevBuffer->getLangType() == _currentBuffer->getLangType()) &&
+		(_currentBuffer->getLangType() != L_USER ||	wcscmp(_prevBuffer->getUserDefineLangName(), _currentBuffer->getUserDefineLangName()) == 0);
+
 	const int currentLangInt = static_cast<int>(_currentBuffer->getLangType());
 	const bool isFirstActiveBuffer = (_currentBuffer->getLastLangType() != currentLangInt);
 
+	unsigned long MODEVENTMASK_ON = NppParameters::getInstance().getScintillaModEventMask();
 	if (isFirstActiveBuffer)  // Entering the tab for the 1st time
 	{
 		// change the doc, this operation will decrease
@@ -2322,6 +2367,9 @@ void ScintillaEditView::activateBuffer(BufferID buffer, bool force)
 		execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF);
 		execute(SCI_SETDOCPOINTER, 0, _currentBuffer->getDocument());
 		execute(SCI_SETMODEVENTMASK, MODEVENTMASK_ON);
+
+		if (force)
+			defineDocType(_currentBuffer->getLangType());
 	}
 	else // Entering the tab for the 2nd or more times, with the different language type
 	{
@@ -2341,12 +2389,6 @@ void ScintillaEditView::activateBuffer(BufferID buffer, bool force)
 	_currentBuffer->setLastLangType(currentLangInt);
 
 	setWordChars();
-
-	if (_currentBuffer->getNeedsLexing())
-	{
-		restyleBuffer();
-	}
-
 	maintainStateForNpc();
 
 	// Everything should be updated, but the language
@@ -2358,7 +2400,8 @@ void ScintillaEditView::activateBuffer(BufferID buffer, bool force)
 
 	restoreCurrentPosPreStep();
 
-	runMarkers(true, 0, true, false);
+	//runMarkers(true, 0, true, false);
+	restoreHiddenLines();
 
 	setCRLF();
 
@@ -2420,7 +2463,7 @@ void ScintillaEditView::bufferUpdated(Buffer * buffer, int mask)
 		if (mask & BufferChangeLanguage)
 		{
 			defineDocType(buffer->getLangType());
-			foldAll(fold_uncollapse);
+			foldAll(fold_expand);
 		}
 
 		if (mask & BufferChangeLexing)
@@ -4225,6 +4268,30 @@ void ScintillaEditView::runMarkers(bool doHide, size_t searchStart, bool endOfDo
 		}
 	}
 }
+
+void ScintillaEditView::restoreHiddenLines()
+{
+	int line = 0;
+
+	while (line != -1)
+	{
+		line = static_cast<int>(execute(SCI_MARKERNEXT, line, 1 << MARK_HIDELINESBEGIN));
+		
+		if (line != -1)
+		{
+			int startHiding = line + 1;
+			line = static_cast<int>(execute(SCI_MARKERNEXT, line, 1 << MARK_HIDELINESEND));
+
+			if (line != -1)
+			{
+				execute(SCI_HIDELINES, startHiding, line - 1);
+
+			}
+		}
+	}
+}
+
+
 
 
 void ScintillaEditView::setTabSettings(Lang* lang)

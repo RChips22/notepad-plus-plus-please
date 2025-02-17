@@ -224,6 +224,7 @@ LRESULT Notepad_plus::init(HWND hwnd)
 	_subEditView.init(_pPublicInterface->getHinst(), hwnd);
 
 	_fileEditView.init(_pPublicInterface->getHinst(), hwnd);
+	_fileEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF); // Turn off the modification event
 	MainFileManager.init(this, &_fileEditView); //get it up and running asap.
 
 	nppParam.setFontList(hwnd);
@@ -280,6 +281,7 @@ LRESULT Notepad_plus::init(HWND hwnd)
 	_invisibleEditView.init(_pPublicInterface->getHinst(), hwnd);
 	_invisibleEditView.execute(SCI_SETUNDOCOLLECTION);
 	_invisibleEditView.execute(SCI_EMPTYUNDOBUFFER);
+	_invisibleEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF); // Turn off the modification event
 	_invisibleEditView.wrap(false); // Make sure no slow down
 
 	// Configuration of 2 scintilla views
@@ -629,8 +631,8 @@ LRESULT Notepad_plus::init(HWND hwnd)
 
 	if (nppParam.hasCustomContextMenu())
 	{
-		_mainEditView.execute(SCI_USEPOPUP, FALSE);
-		_subEditView.execute(SCI_USEPOPUP, FALSE);
+		_mainEditView.execute(SCI_USEPOPUP, SC_POPUP_NEVER);
+		_subEditView.execute(SCI_USEPOPUP, SC_POPUP_NEVER);
 	}
 
 	_nativeLangSpeaker.changeMenuLang(_mainMenuHandle);
@@ -789,23 +791,7 @@ LRESULT Notepad_plus::init(HWND hwnd)
 	//Hide or show the right shortcuts "＋" "▼" "✕" of main menu bar
 	if (nppGUI._hideMenuRightShortcuts)
 	{
-		int nbRemoved = 0;
-		const int bufferSize = 64;
-		wchar_t buffer[bufferSize];
-		int nbItem = GetMenuItemCount(_mainMenuHandle);
-		for (int i = nbItem - 1; i >= 0; --i)
-		{
-			::GetMenuStringW(_mainMenuHandle, i, buffer, bufferSize, MF_BYPOSITION);
-			if (lstrcmp(buffer, L"✕") == 0 || lstrcmp(buffer, L"▼") == 0 || lstrcmp(buffer, L"＋") == 0)
-			{
-				::RemoveMenu(_mainMenuHandle, i, MF_BYPOSITION);
-				++nbRemoved;
-			}
-			if (nbRemoved == 3)
-				break;
-		}
-		if (nbRemoved > 0)
-			::DrawMenuBar(hwnd);
+		::SendMessage(_pPublicInterface->getHSelf(), NPPM_INTERNAL_HIDEMENURIGHTSHORTCUTS, 0, 0);
 	}
 
 	//
@@ -924,6 +910,7 @@ bool Notepad_plus::saveGUIParams()
 						(TabBarPlus::isDbClk2Close() ? TAB_DBCLK2CLOSE : 0) | \
 						(TabBarPlus::isVertical() ? TAB_VERTICAL : 0) | \
 						(TabBarPlus::isMultiLine() ? TAB_MULTILINE : 0) |\
+						(nppGUI._tabStatus & TAB_INACTIVETABSHOWBUTTON) | \
 						(nppGUI._tabStatus & TAB_HIDE) | \
 						(nppGUI._tabStatus & TAB_QUITONEMPTY) | \
 						(nppGUI._tabStatus & TAB_ALTICONS);
@@ -3438,10 +3425,29 @@ bool isUrl(wchar_t * text, int textLen, int start, int* segmentLen)
 	return false;
 }
 
+void Notepad_plus::removeAllHotSpot()
+{
+	DocTabView* twoDocView[] { &_mainDocTab, &_subDocTab };
+	for (DocTabView* pDocView : twoDocView)
+	{
+		for (size_t i = 0; i < pDocView->nbItem(); ++i)
+		{
+			BufferID id = pDocView->getBufferByIndex(i);
+			Buffer* buf = MainFileManager.getBufferByID(id);
+
+			if (buf->allowClickableLink()) // if it's not allowed clickabled link in the buffer, there's nothing to be cleared
+			{
+				MainFileManager.removeHotSpot(buf);
+			}
+		}
+	}
+}
+
 void Notepad_plus::addHotSpot(ScintillaEditView* view)
 {
 	if (_isAttemptingCloseOnQuit)
 		return; // don't recalculate URLs when shutting down
+
 	ScintillaEditView* pView = view ? view : _pEditView;
 	Buffer* currentBuf = pView->getCurrentBuffer();
 
@@ -3464,6 +3470,7 @@ void Notepad_plus::addHotSpot(ScintillaEditView* view)
 	pView->getVisibleStartAndEndPosition(&startPos, &endPos);
 	if (startPos >= endPos) return;
 	pView->execute(SCI_SETINDICATORCURRENT, URL_INDIC);
+
 	if (urlAction == urlDisable || !currentBuf->allowClickableLink())
 	{
 		pView->execute(SCI_INDICATORCLEARRANGE, startPos, endPos - startPos);
@@ -3865,38 +3872,31 @@ BOOL Notepad_plus::processTabSwitchAccel(MSG* msg) const
 
 void Notepad_plus::setLanguage(LangType langType)
 {
-	//Add logic to prevent changing a language when a document is shared between two views
-	//If so, release one document
-	bool reset = false;
-	Document prev = 0;
-	if (bothActive())
+	unsigned long MODEVENTMASK_ON = NppParameters::getInstance().getScintillaModEventMask();
+
+	if (bothActive() && (_mainEditView.getCurrentBufferID() == _subEditView.getCurrentBufferID()))
 	{
-		if (_mainEditView.getCurrentBufferID() == _subEditView.getCurrentBufferID())
-		{
-			reset = true;
-			_subEditView.saveCurrentPos();
-			prev = _subEditView.execute(SCI_GETDOCPOINTER);
-			_subEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF);
-			_subEditView.execute(SCI_SETDOCPOINTER, 0, 0);
-			_subEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_ON);
-		}
-	}
-	
-	if (reset)
-	{
-		_mainEditView.getCurrentBuffer()->setLangType(langType);
+		// Add logic to prevent changing a language when a document is shared between two views
+		// If so, release one document
+
+		_subEditView.saveCurrentPos();
+		Document subPrev = _subEditView.execute(SCI_GETDOCPOINTER);
+		_subEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF);
+		_subEditView.execute(SCI_SETDOCPOINTER, 0, 0);
+		_subEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_ON);
+
+		_mainEditView.setLanguage(langType);
+
+		_subEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF);
+		_subEditView.execute(SCI_SETDOCPOINTER, 0, subPrev);
+		_subEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_ON);
+		_subEditView.maintainStateForNpc();
+		_subEditView.setCRLF();
+		_subEditView.restoreCurrentPosPreStep();
 	}
 	else
 	{
-		_pEditView->getCurrentBuffer()->setLangType(langType);
-	}
-
-	if (reset)
-	{
-		_subEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_OFF);
-		_subEditView.execute(SCI_SETDOCPOINTER, 0, prev);
-		_subEditView.execute(SCI_SETMODEVENTMASK, MODEVENTMASK_ON);
-		_subEditView.restoreCurrentPosPreStep();
+		_pEditView->setLanguage(langType);
 	}
 }
 
@@ -4084,6 +4084,8 @@ LangType Notepad_plus::menuID2LangType(int cmdID)
             return L_RAKU;
         case IDM_LANG_TOML:
             return L_TOML;
+        case IDM_LANG_SAS:
+            return L_SAS;
         case IDM_LANG_USER:
             return L_USER;
 		default:
@@ -5012,6 +5014,7 @@ bool Notepad_plus::activateBuffer(BufferID id, int whichOne, bool forceApplyHili
 		// Before switching off, synchronize backup file
 		MainFileManager.backupCurrentBuffer();
 	}
+
 	Buffer * pBuf = MainFileManager.getBufferByID(id);
 	bool reload = pBuf->getNeedReload();
 	if (reload)
@@ -5019,6 +5022,7 @@ bool Notepad_plus::activateBuffer(BufferID id, int whichOne, bool forceApplyHili
 		MainFileManager.reloadBuffer(id);
 		pBuf->setNeedReload(false);
 	}
+
 	if (whichOne == MAIN_VIEW)
 	{
 		if (_mainDocTab.activateBuffer(id))	//only activate if possible
